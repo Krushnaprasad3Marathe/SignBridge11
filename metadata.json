@@ -1,0 +1,11 @@
+{
+  "name": "ASL Vision Translator",
+  "description": "Real-time American Sign Language detection and translation using computer vision and AI.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "Vision",
+    "Real-time ML"
+  ]
+}
