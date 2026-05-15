@@ -23,9 +23,8 @@ export function classifySign(landmarks: Landmark[], handedness: string): string 
   if (!landmarks || landmarks.length < 21) return "";
 
   const wrist = landmarks[0];
-  const isRightHand = handedness === "Right";
   
-  // Normalization factor based on palm size
+  // Normalization factor based on palm size (Wrist to Middle Finger Base)
   const palmSize = dist(wrist, landmarks[9]);
   
   // Hand orientation detection
@@ -41,8 +40,8 @@ export function classifySign(landmarks: Landmark[], handedness: string): string 
     const d = dist(landmarks[tip], wrist);
     const b = dist(landmarks[mid], wrist);
     
-    if (angle > 155 && d > b) return 2; // Straight
-    if (angle < 110) return 0; // Folded
+    if (angle > 150 && d > b) return 2; // Straight
+    if (angle < 115) return 0; // Folded
     return 1; // Curved
   };
 
@@ -51,117 +50,101 @@ export function classifySign(landmarks: Landmark[], handedness: string): string 
   const f3 = getFingerState(13, 14, 16); // Ring
   const f4 = getFingerState(17, 18, 20); // Pinky
 
-  // Thumb special check
-  const thumbExtended = dist(landmarks[4], landmarks[9]) > palmSize * 0.85;
-  const thumbBase = landmarks[2];
+  // Thumb status
   const thumbTip = landmarks[4];
+  const thumbBase = landmarks[2];
+  const thumbExtended = dist(thumbTip, landmarks[9]) > palmSize * 0.85;
 
   const allFolded = f1 === 0 && f2 === 0 && f3 === 0 && f4 === 0;
   const allExtended = f1 === 2 && f2 === 2 && f3 === 2 && f4 === 2;
 
-  if (isRightHand) {
-    // --- Right Hand: A-M ---
-    
-    // A: Fist, thumb tucked on side
-    if (allFolded && thumbExtended) {
-      if (thumbTip.y < landmarks[5].y && thumbTip.x < landmarks[5].x) return "A";
-    }
+  // --- Alphabet Logic based on geometric constraints ---
 
-    // B: Flat palm together
-    if (allExtended && dist(landmarks[8], landmarks[12]) < palmSize * 0.3) return "B";
+  // A: Fist, thumb on side
+  if (allFolded && thumbExtended && thumbTip.y < landmarks[5].y) return "A";
 
-    // C: All fingers curved (making a 'C')
-    if (f1 === 1 && f2 === 1 && f3 === 1 && f4 === 1) {
-      if (dist(landmarks[8], landmarks[4]) > palmSize * 0.5) return "C";
-    }
+  // B: Flat palm, all up
+  if (allExtended && dist(landmarks[8], landmarks[12]) < palmSize * 0.4) return "B";
 
-    // D: Index up, others making a circle
-    if (f1 === 2 && f2 < 2 && f3 < 2 && f4 < 2) {
-      if (dist(landmarks[12], landmarks[4]) < palmSize * 0.5) return "D";
-    }
+  // C: All fingers curved (making a 'C')
+  if (f1 === 1 && f2 === 1 && f3 === 1 && f4 === 1 && dist(landmarks[8], thumbTip) > palmSize * 0.5) return "C";
 
-    // E: Tight fist
-    if (allFolded && !thumbExtended) {
-      const tipsAboveThumb = [8, 12, 16, 20].every(i => landmarks[i].y < thumbTip.y);
-      if (tipsAboveThumb) return "E";
-    }
-
-    // F: Index/Thumb touching, others up
-    if (dist(landmarks[8], landmarks[4]) < palmSize * 0.3 && f2 === 2 && f3 === 2 && f4 === 2) return "F";
-
-    // G: Index and thumb pointing out horizontally (Sideways pinch)
-    if (isHorizontal && f1 === 2 && thumbExtended) {
-      if (Math.abs(landmarks[8].y - landmarks[4].y) < palmSize * 0.5) return "G";
-    }
-
-    // H: Index and middle out horizontally
-    if (isHorizontal && f1 === 2 && f2 === 2 && f3 === 0) {
-      if (dist(landmarks[8], landmarks[12]) < palmSize * 0.3) return "H";
-    }
-
-    // I: Pinky up only
-    if (f4 === 2 && f1 === 0 && f2 === 0 && f3 === 0) return "I";
-
-    // K: V with thumb on middle finger joint
-    if (f1 === 2 && f2 === 2) {
-      if (dist(landmarks[4], landmarks[10]) < palmSize * 0.45) return "K";
-    }
-
-    // L: Index and thumb forming L
-    if (f1 === 2 && thumbExtended && f2 === 0) return "L";
-
-    // M: Fist, thumb tucked deep (under 3 fingers)
-    if (allFolded && thumbTip.x > landmarks[13].x) return "M";
-
-  } else {
-    // --- Left Hand: N-Z ---
-    
-    // N: Fist, thumb under index and middle
-    if (allFolded && thumbTip.x < landmarks[13].x && thumbTip.x > landmarks[9].x) return "N";
-
-    // O: All fingers to thumb (Circle)
-    if (allFolded || f1 === 1) {
-      const allToThumb = [8, 12, 16, 20].every(i => dist(landmarks[i], landmarks[4]) < palmSize * 0.45);
-      if (allToThumb) return "O";
-    }
-
-    // P: K pointing down
-    if (isDownward && f1 === 2 && f2 === 2 && dist(landmarks[4], landmarks[10]) < palmSize * 0.5) return "P";
-
-    // Q: G pointing down
-    if (isDownward && f1 === 2 && thumbExtended && f2 === 0) return "Q";
-
-    // R: Index and middle crossed
-    if (f1 === 2 && f2 === 2) {
-      if (Math.abs(landmarks[8].x - landmarks[12].x) < palmSize * 0.15) return "R";
-    }
-
-    // S: Fist, thumb over middle
-    if (allFolded && dist(landmarks[4], landmarks[10]) < palmSize * 0.4) return "S";
-
-    // T: Fist, thumb between index and middle
-    if (allFolded && thumbTip.x < landmarks[9].x && thumbTip.x > landmarks[5].x) return "T";
-
-    // U: Index/Middle together (Vertical)
-    if (f1 === 2 && f2 === 2 && dist(landmarks[8], landmarks[12]) < palmSize * 0.25) return "U";
-
-    // V: Index/Middle spread (V shape)
-    if (f1 === 2 && f2 === 2 && dist(landmarks[8], landmarks[12]) > palmSize * 0.3) return "V";
-
-    // W: 3 fingers up (Index, Middle, Ring)
-    if (f1 === 2 && f2 === 2 && f3 === 2 && f4 === 0) return "W";
-
-    // X: Hooked index finger
-    if (f1 === 1 && f2 === 0 && f3 === 0 && f4 === 0) return "X";
-
-    // Y: Thumb and Pinky out, middle fingers folded
-    if (thumbExtended && f4 === 2 && f1 === 0 && f2 === 0) {
-      if (dist(landmarks[4], landmarks[20]) > palmSize * 0.8) return "Y";
-    }
-
-    // Z: Index finger up (Pointing)
-    if (f1 === 2 && f2 === 0 && f3 === 0 && f4 === 0) return "Z";
+  // D: Index up, others making a circle with thumb
+  if (f1 === 2 && f2 < 2 && f3 < 2 && f4 < 2) {
+    if (dist(landmarks[12], thumbTip) < palmSize * 0.5) return "D";
   }
+
+  // E: Tight fist, thumb in front
+  if (allFolded && !thumbExtended) {
+    if (thumbTip.y > landmarks[10].y) return "E";
+  }
+
+  // F: Index/Thumb touching, others up spread
+  if (dist(landmarks[8], thumbTip) < palmSize * 0.35 && f2 === 2 && f3 === 2 && f4 === 2) return "F";
+
+  // G: Index out, thumb out (Horizontal)
+  if (isHorizontal && f1 === 2 && thumbExtended && f2 === 0) return "G";
+
+  // H: Index and middle out (Horizontal)
+  if (isHorizontal && f1 === 2 && f2 === 2 && f3 === 0) return "H";
+
+  // I: Pinky up only
+  if (f4 === 2 && f1 === 0 && f2 === 0 && f3 === 0) return "I";
+
+  // K: V with thumb on middle finger joint
+  if (f1 === 2 && f2 === 2) {
+    if (dist(thumbTip, landmarks[10]) < palmSize * 0.5) return "K";
+  }
+
+  // L: Index and thumb forming L
+  if (f1 === 2 && thumbExtended && f2 === 0) return "L";
+
+  // M: Fist, thumb under 3 fingers
+  if (allFolded && thumbTip.x > landmarks[13].x && handedness === "Right") return "M";
+  if (allFolded && thumbTip.x < landmarks[13].x && handedness === "Left") return "M";
+
+  // N: Fist, thumb under 2 fingers
+  if (allFolded && thumbTip.x > landmarks[9].x && thumbTip.x < landmarks[13].x && handedness === "Right") return "N";
+  if (allFolded && thumbTip.x < landmarks[9].x && thumbTip.x > landmarks[13].x && handedness === "Left") return "N";
+
+  // O: All fingers to thumb (Circle)
+  if (allFolded || f1 === 1) {
+    const allToThumb = [8, 12, 16, 20].every(i => dist(landmarks[i], thumbTip) < palmSize * 0.4);
+    if (allToThumb) return "O";
+  }
+
+  // P: K pointing down
+  if (isDownward && f1 === 2 && f2 === 2) return "P";
+
+  // Q: G pointing down
+  if (isDownward && f1 === 2 && thumbExtended && f2 === 0) return "Q";
+
+  // R: Index and middle crossed
+  if (f1 === 2 && f2 === 2 && Math.abs(landmarks[8].x - landmarks[12].x) < palmSize * 0.1) return "R";
+
+  // S: Fist, thumb over middle
+  if (allFolded && dist(thumbTip, landmarks[10]) < palmSize * 0.4) return "S";
+
+  // T: Fist, thumb between index and middle
+  if (allFolded && thumbTip.x < landmarks[9].x && thumbTip.x > landmarks[5].x) return "T";
+
+  // U: Index/Middle together (Vertical)
+  if (f1 === 2 && f2 === 2 && dist(landmarks[8], landmarks[12]) < palmSize * 0.2) return "U";
+
+  // V: Index/Middle spread (V shape)
+  if (f1 === 2 && f2 === 2 && dist(landmarks[8], landmarks[12]) > palmSize * 0.3) return "V";
+
+  // W: 3 fingers spread
+  if (f1 === 2 && f2 === 2 && f3 === 2 && f4 === 0) return "W";
+
+  // X: Hooked index finger
+  if (f1 === 1 && f2 === 0 && f3 === 0 && f4 === 0) return "X";
+
+  // Y: Thumb and Pinky out
+  if (thumbExtended && f4 === 2 && f1 === 0 && f2 === 0) return "Y";
+
+  // Z: Pointing up
+  if (f1 === 2 && f2 === 0 && f3 === 0 && f4 === 0) return "Z";
 
   return "";
 }

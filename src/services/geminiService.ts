@@ -30,3 +30,29 @@ export async function correctWord(input: string): Promise<string> {
     return input;
   }
 }
+
+export async function restrictedPredict(input: string, library: string[]): Promise<string> {
+  if (!input || input.length < 1) return "";
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      config: {
+        systemInstruction: `You are a specialized ASL predictor for restricted vocabularies.
+        The user is signing a word, but the input is a noisy string of characters.
+        Library: ${library.join(", ")}
+        Task: Match the noisy input to exactly one word from the library.
+        If it's impossible to match, return the original input.
+        Output: ONLY the matched word in uppercase.`,
+      },
+      contents: `Noisy Input: "${input}"`,
+    });
+
+    const text = response.text || "";
+    const prediction = text.trim().toUpperCase().split(/\s+/)[0];
+    return library.includes(prediction) ? prediction : input;
+  } catch (error) {
+    console.error("Restricted Predictor Error:", error);
+    return input;
+  }
+}

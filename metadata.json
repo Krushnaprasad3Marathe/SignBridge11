@@ -1,8 +1,9 @@
 {
-  "name": "ASL Vision Translator",
-  "description": "Real-time American Sign Language detection and translation using computer vision and AI.",
+  "name": "Accessibility Community Platform",
+  "description": "An AI-assisted communication and accessibility platform designed to help speech and hearing impaired individuals interact more independently with digital and public systems.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ],
   "majorCapabilities": [
     "Vision",
